@@ -115,5 +115,39 @@ ul li {
     margin-bottom: 10px;
 }
 
+/* Styling til sæder */
+.seat {
+    width: 25px;
+    height: 25px;
+    background-color: green; /* Ledige sæder */
+    margin: 5px;
+    cursor: pointer;
+    display: inline-block;
+    border-radius: 5px;
+}
+
+.seat.selected {
+    background-color: orange; /* Valgte sæder */
+}
+
+.seat.reserved {
+    background-color: red; /* Reserverede sæder */
+}
+
+#seatMap {
+    margin-top: 20px;
+}
+
+#confirmSeats {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+
 
 

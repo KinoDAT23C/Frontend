@@ -33,17 +33,13 @@ document.getElementById("showShowingsBtn").addEventListener("click", () => {
         <div id="reservationOutput"></div>
     `;
 
-    // Tilføj event listener til knappen for at hente forestillinger baseret på valgt dato
     document.getElementById("fetchShowingsBtn").addEventListener("click", () => {
         const date = document.getElementById("showingDate").value;
 
-        // Opdater visning af den valgte dato
         document.getElementById("selectedDate").innerHTML = `<h3>Alle Forestillinger for: ${date}</h3>`;
-
         fetchShowings(date);
     });
 
-    // Hent forestillinger for valgte dato ved første visning
     fetchShowings(new Date().toISOString().split('T')[0]);
 });
 
@@ -51,17 +47,15 @@ function fetchShowings(date) {
     fetch(`http://localhost:8080/api/showings/date?date=${date}`)
         .then(response => response.json())
         .then(showings => {
-            let outputHtml = showings.map(showing => {
-                return `
-                    <div class="showing-card">
-                        <img src="${showing.movie.imageUrl}" alt="${showing.movie.title}" class="showing-image">
-                        <h3>Film: ${showing.movie.title}</h3>
-                        <p>Tid: ${showing.startTime}</p>
-                        <p>Biografsal: ${showing.theater.name}</p>
-                        <button class="reserve-button" data-showing-id="${showing.showingId}" data-theater-id="${showing.theater.theaterId}">Reserver billetter</button>
-                    </div>
-                `;
-            }).join("");
+            let outputHtml = showings.map(showing => `
+                <div class="showing-card">
+                    <img src="${showing.movie.imageUrl}" alt="${showing.movie.title}" class="showing-image">
+                    <h3>Film: ${showing.movie.title}</h3>
+                    <p>Tid: ${showing.startTime}</p>
+                    <p>Biografsal: ${showing.theater.name}</p>
+                    <button class="reserve-button" data-showing-id="${showing.showingId}" data-theater-id="${showing.theater.theaterId}">Reserver billetter</button>
+                </div>
+            `).join("");
 
             document.getElementById("showingsOutput").innerHTML = outputHtml;
 
@@ -70,78 +64,76 @@ function fetchShowings(date) {
                     const showingId = button.dataset.showingId;
                     const theaterId = button.dataset.theaterId;
 
-                    console.log(`Knap trykket: Showing ID ${showingId}, Theater ID: ${theaterId}`);
-
-                    // Hent ledige sæder for den valgte forestilling
-                    fetch(`http://localhost:8080/api/seats/available-seats/${showingId}?theaterId=${theaterId}`)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-
-                            return response.json();
-                        })
-                        .then(seats => {
-                            console.log('Ledige sæder:', seats);
-                            let seatOptions = seats.map(seat => `
-                                <option value="${seat.seatId}">Række: ${seat.rowNumberr}, Sæde: ${seat.seatNumber}</option>
-                            `).join("");
-
-                            // Tilføj reservationsformularen i den separate div for at undgå konflikter
-                            const reservationOutput = document.getElementById("reservationOutput");
-                            reservationOutput.innerHTML = `
-                                <div class="reservation-form">
-                                    <h3>Reservation for Showing ID: ${showingId}</h3>
-                                    <label for="customerName">Navn:</label>
-                                    <input type="text" id="customerName" required><br>
-                                    <label for="customerEmail">Email:</label>
-                                    <input type="email" id="customerEmail" required><br>
-                                    <label for="seatSelect">Vælg sæde:</label>
-                                    <select id="seatSelect">${seatOptions}</select><br>
-                                    <button id="submitReservation">Reserver</button>
-                                </div>
-                            `;
-
-                            // Håndter reservation når knappen trykkes
-                            document.getElementById("submitReservation").addEventListener("click", () => {
-                                const customerName = document.getElementById("customerName").value;
-                                const customerEmail = document.getElementById("customerEmail").value;
-                                const seatId = document.getElementById("seatSelect").value;
-
-                                if (!customerName || !customerEmail) {
-                                    alert("Udfyld venligst både navn og email.");
-                                    return;
-                                }
-
-                                console.log('Reservation info:', { customerName, customerEmail, seatId, showingId });
-
-                                // Send reservationen til backend
-                                fetch("http://localhost:8080/api/reservations", {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json"
-                                    },
-                                    body: JSON.stringify({
-                                        customerName,
-                                        customerEmail,
-                                        seat: { seatId },
-                                        showing: { showingId }
-                                    })
-                                })
-                                    .then(response => {
-                                        console.log('Reservation response:', response);
-                                        if (response.ok) {
-                                            alert("Reservation oprettet!");
-                                        } else {
-                                            alert("Fejl ved oprettelse af reservation.");
-                                        }
-                                    })
-                                    .catch(error => console.error("Der opstod en fejl:", error));
-                            });
-                        })
-                        .catch(error => console.error("Fejl ved hentning af sæder:", error));
+                    fetchAvailableSeats(showingId, theaterId);
                 });
             });
+        })
+        .catch(error => console.error("Der opstod en fejl:", error));
+}
+
+function fetchAvailableSeats(showingId, theaterId) {
+    fetch(`http://localhost:8080/api/available-seats/${showingId}?theaterId=${theaterId}`)
+        .then(response => response.json())
+        .then(seats => {
+            let seatMapHtml = seats.map(seat => `
+                <div class="seat" data-seat-id="${seat.seatId}" data-row="${seat.rowNumberr}" data-seat="${seat.seatNumber}">
+                    Række ${seat.rowNumberr} Sæde ${seat.seatNumber}
+                </div>
+            `).join("");
+
+            document.getElementById("reservationOutput").innerHTML = `
+                <h3>Vælg dine sæder</h3>
+                <div id="seatMap">${seatMapHtml}</div>
+                <button id="confirmSeats">Bekræft valgte sæder</button>
+            `;
+
+            document.querySelectorAll(".seat").forEach(seat => {
+                seat.addEventListener("click", () => selectSeat(seat));
+            });
+
+            document.getElementById("confirmSeats").addEventListener("click", () => {
+                confirmSelectedSeats(showingId);
+            });
+        })
+        .catch(error => console.error("Fejl ved hentning af ledige sæder:", error));
+}
+
+let selectedSeats = [];
+
+function selectSeat(seatDiv) {
+    seatDiv.classList.toggle("selected");
+    const seatId = seatDiv.dataset.seatId;
+
+    const index = selectedSeats.indexOf(seatId);
+    if (index > -1) {
+        selectedSeats.splice(index, 1);
+    } else {
+        selectedSeats.push(seatId);
+    }
+}
+
+function confirmSelectedSeats(showingId) {
+    if (selectedSeats.length === 0) {
+        alert("Vælg venligst mindst ét sæde.");
+        return;
+    }
+
+    fetch("http://localhost:8080/api/reservations", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            showingId: showingId,
+            seats: selectedSeats
+        })
+    })
+        .then(response => {
+            if (response.ok) {
+                alert("Reservation oprettet!");
+            } else {
+                alert("Fejl ved oprettelse af reservation.");
+            }
         })
         .catch(error => console.error("Der opstod en fejl:", error));
 }
