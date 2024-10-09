@@ -305,8 +305,8 @@ function fetchMovies() {
             data.forEach(movie => {
                 output += `
                     <li>
-                        ${movie.title} - ${movie.genre} 
-                        <button onclick="deleteMovie(${movie.movie_id})">Slet</button>
+                        ${movie.title} - ${movie.movieId} 
+                        <button onclick="deleteMovie(${movie.movieId})">Slet</button>
                     </li>
                 `;
             });
@@ -340,6 +340,21 @@ function addMovie() {
         },
         body: JSON.stringify(movieData)
     })
+        .then(response => response.text())
+        .then(message => {
+            alert(message);
+            fetchMovies(); 
+        })
+        .catch(error => console.error("Error adding movie:", error));
+
+
+    fetch("http://localhost:8080/api/movies", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(movieData)
+    })
         .then(response => {
             if (response.ok) {
                 alert("Film tilføjet!");
@@ -351,17 +366,22 @@ function addMovie() {
         .catch(error => console.error("Der opstod en fejl:", error));
 }
 
+
 function deleteMovie(movieId) {
+    console.log(`Deleting movie with ID: ${movieId}`); // Log the movie ID being sent
+
     fetch(`http://localhost:8080/api/movies/${movieId}`, {
         method: "DELETE"
     })
         .then(response => {
             if (response.ok) {
-                alert("Film slettet!");
-                fetchMovies(); // Refresh the movie list
+                alert("Film slettet");
+                fetchMovies();
             } else {
                 alert("Fejl ved sletning af film.");
             }
         })
-        .catch(error => console.error("Der opstod en fejl:", error));
+        .catch(error => console.error("Error deleting movie:", error));
 }
+
+
