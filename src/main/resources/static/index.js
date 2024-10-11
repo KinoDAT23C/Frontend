@@ -60,6 +60,9 @@ function fetchShowings(date) {
             // Fjern event listeners fra tidligere knapper
             document.querySelectorAll(".reserve-button").forEach(button => {
 
+
+                button.removeEventListener("click", handleReserveClick);
+            });
                 button.removeEventListener("click", handleReserveClick);
             });
 
@@ -364,4 +367,281 @@ function deleteMovie(movieId) {
             }
         })
         .catch(error => console.error("Der opstod en fejl:", error));
+// Log ind form
+// Tilføj event listener for admin login knappen
+document.getElementById("adminLogIn").addEventListener("click", function () {
+    document.getElementById("output").innerHTML = `
+        <div id="login-form">
+            <h2>Admin Log Ind</h2>
+            <label for="username">Brugernavn:</label>
+            <input type="text" id="username" required><br><br>
+            <label for="password">Adgangskode:</label>
+            <input type="password" id="password" required><br><br>
+            <button id="submitLogin">Log ind</button>
+            <button id="backToHome">Tilbage</button>
+        </div>
+    `;
+
+    // Tilføj event listener for login-knappen EFTER formularen er tilføjet
+    document.getElementById("submitLogin").addEventListener("click", function () {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        fetch("http://localhost:8080/api/employees")
+            .then(response => response.json())
+            .then(employees => {
+                const employee = employees.find(emp => emp.name === username);
+
+                if (employee) {
+                    if (employee.password === password) {
+                        showAdminPanel();  // Når login lykkes, vis admin-panelet
+                    } else {
+                        alert("Forkert adgangskode.");
+                    }
+                } else {
+                    alert("Brugernavn findes ikke.");
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching employees:", error);
+                alert("Der opstod en fejl ved loginforsøg.");
+            });
+    });
+
+    // Tilføj event listener for "Tilbage"-knappen EFTER den er tilføjet
+    document.getElementById("backToHome").addEventListener("click", function () {
+        document.getElementById("output").innerHTML = ''; // Tilbage til start
+    });
+});
+
+// Funktion der viser admin-panelet
+function showAdminPanel() {
+    document.getElementById("output").innerHTML = `
+        <h2>Admin Panel</h2>
+        <button id="createMovie">Opret film</button>
+        <button id="createShowing">Opret forestillinger</button>
+        <button id="deleteMovie">Slet film</button>
+        <button id="deleteShowing">Slet forestillinger</button>
+    `;
+
+    // Event listener for "Opret film"-knappen
+    document.getElementById("createMovie").addEventListener("click", function () {
+        document.getElementById("output").innerHTML = `
+            <h2>Opret en ny film</h2>
+            <label for="title">Titel:</label>
+            <input type="text" id="title" required><br><br>
+            <label for="genre">Genre:</label>
+            <input type="text" id="genre" required><br><br>
+            <label for="ageRestriction">Aldersbegrænsning:</label>
+            <input type="number" id="ageRestriction" required><br><br>
+            <label for="duration">Varighed (minutter):</label>
+            <input type="number" id="duration" required><br><br>
+            <label for="description">Beskrivelse:</label>
+            <textarea id="description" required></textarea><br><br>
+            <label for="imageUrl">Billed-URL:</label>
+            <input type="text" id="imageUrl" required><br><br>
+            <button id="submitMovie">Opret film</button>
+            <button id="backToAdmin">Tilbage</button>
+        `;
+
+        document.getElementById("submitMovie").addEventListener("click", function () {
+            const movieData = {
+                title: document.getElementById("title").value,
+                genre: document.getElementById("genre").value,
+                ageRestriction: document.getElementById("ageRestriction").value,
+                duration: document.getElementById("duration").value,
+                description: document.getElementById("description").value
+            };
+
+            const imageUrl = document.getElementById("imageUrl").value;
+
+            fetch(`http://localhost:8080/api/movies/createWithImage?imageUrl=${encodeURIComponent(imageUrl)}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(movieData)
+            })
+                .then(response => {
+                    if (response.ok) {
+                        alert("Film oprettet succesfuldt!");
+                        showAdminPanel();
+                    } else {
+                        alert("Der opstod en fejl ved oprettelse af filmen.");
+                    }
+                })
+                .catch(error => console.error("Error creating movie:", error));
+        });
+
+        document.getElementById("backToAdmin").addEventListener("click", function () {
+            showAdminPanel();
+        });
+    });
+
+    // Event listener for "Opret forestillinger"-knappen
+    document.getElementById("createShowing").addEventListener("click", function () {
+        fetch("http://localhost:8080/api/movies")
+            .then(response => response.json())
+            .then(movies => {
+                let movieOptions = movies.map(movie => `<option value="${movie.movieId}">${movie.title}</option>`).join('');
+
+                document.getElementById("output").innerHTML = `
+                    <h2>Opret forestillinger for en film</h2>
+                    <label for="movieId">Vælg en film:</label>
+                    <select id="movieId">
+                        ${movieOptions}
+                    </select><br><br>
+
+                    <label for="startDate">Startdato:</label>
+                    <input type="date" id="startDate" required><br><br>
+
+                    <label for="monthsAhead">Hvor mange måneder frem:</label>
+                    <input type="number" id="monthsAhead" min="1" required><br><br>
+
+                    <label for="largeTheaterStartTime">Starttid for stor biografsal (hh:mm):</label>
+                    <input type="time" id="largeTheaterStartTime"><br><br>
+
+                    <label for="smallTheaterStartTime">Starttid for lille biografsal (hh:mm):</label>
+                    <input type="time" id="smallTheaterStartTime"><br><br>
+
+                    <button id="submitShowing">Opret forestillinger</button>
+                    <button id="backToAdmin">Tilbage</button>
+                `;
+
+                document.getElementById("submitShowing").addEventListener("click", function () {
+                    const movieId = document.getElementById("movieId").value;
+                    const startDate = document.getElementById("startDate").value;
+                    const monthsAhead = document.getElementById("monthsAhead").value;
+                    const largeTheaterStartTime = document.getElementById("largeTheaterStartTime").value || null;
+                    const smallTheaterStartTime = document.getElementById("smallTheaterStartTime").value || null;
+
+                    if (!movieId || !startDate || !monthsAhead) {
+                        alert("Udfyld venligst alle de nødvendige felter.");
+                        return;
+                    }
+
+                    const queryParams = new URLSearchParams({
+                        movieId: movieId,
+                        startDate: startDate,
+                        monthsAhead: monthsAhead,
+                        largeTheaterStartTime: largeTheaterStartTime,
+                        smallTheaterStartTime: smallTheaterStartTime
+                    });
+
+                    fetch(`http://localhost:8080/api/showings/generate?${queryParams.toString()}`, {
+                        method: "POST"
+                    })
+                        .then(response => {
+                            if (response.ok) {
+                                alert("Forestillinger oprettet succesfuldt!");
+                                showAdminPanel();
+                            } else {
+                                alert("Der opstod en fejl ved oprettelsen af forestillingerne.");
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Fejl ved oprettelse af forestillinger:", error);
+                        });
+                });
+
+                document.getElementById("backToAdmin").addEventListener("click", function () {
+                    showAdminPanel();
+                });
+            })
+            .catch(error => console.error("Fejl ved hentning af film:", error));
+    });
+
+    // Event listener for "Slet film"-knappen
+    document.getElementById("deleteMovie").addEventListener("click", function () {
+        fetch("http://localhost:8080/api/movies")
+            .then(response => response.json())
+            .then(movies => {
+                let movieOptions = movies.map(movie => `<option value="${movie.movieId}">${movie.title}</option>`).join('');
+
+                document.getElementById("output").innerHTML = `
+                    <h2>Slet en film</h2>
+                    <label for="movieId">Vælg en film:</label>
+                    <select id="movieId">
+                        ${movieOptions}
+                    </select><br><br>
+                    <button id="submitDeleteMovie">Slet film</button>
+                    <button id="backToAdmin">Tilbage</button>
+                `;
+
+                document.getElementById("submitDeleteMovie").addEventListener("click", function () {
+                    const movieId = document.getElementById("movieId").value;
+
+                    if (confirm("Er du sikker på, at du vil slette denne film? Alle tilknyttede forestillinger vil også blive slettet.")) {
+                        fetch(`http://localhost:8080/api/movies/${movieId}`, {
+                            method: "DELETE"
+                        })
+                            .then(response => {
+                                if (response.ok) {
+                                    alert("Film slettet succesfuldt!");
+                                    showAdminPanel();
+                                } else {
+                                    alert("Der opstod en fejl ved sletning af filmen.");
+                                }
+                            })
+                            .catch(error => {
+                                console.error("Fejl ved sletning af film:", error);
+                            });
+                    }
+                });
+
+                document.getElementById("backToAdmin").addEventListener("click", function () {
+                    showAdminPanel();
+                });
+            })
+            .catch(error => console.error("Fejl ved hentning af film:", error));
+    });
+
+    // Event listener for "Slet forestillinger"-knappen
+    document.getElementById("deleteShowing").addEventListener("click", function () {
+        fetch("http://localhost:8080/api/showings")
+            .then(response => response.json())
+            .then(showings => {
+                let showingOptions = showings.map(showing => `
+                    <option value="${showing.showingId}">
+                        ${showing.movie.title} - ${showing.date} kl. ${showing.startTime}
+                    </option>
+                `).join('');
+
+                document.getElementById("output").innerHTML = `
+                    <h2>Slet en forestilling</h2>
+                    <label for="showingId">Vælg en forestilling:</label>
+                    <select id="showingId">
+                        ${showingOptions}
+                    </select><br><br>
+                    <button id="submitDeleteShowing">Slet forestilling</button>
+                    <button id="backToAdmin">Tilbage</button>
+                `;
+
+                document.getElementById("submitDeleteShowing").addEventListener("click", function () {
+                    const showingId = document.getElementById("showingId").value;
+
+                    if (confirm("Er du sikker på, at du vil slette denne forestilling?")) {
+                        fetch(`http://localhost:8080/api/showings/${showingId}`, {
+                            method: "DELETE"
+                        })
+                            .then(response => {
+                                if (response.ok) {
+                                    alert("Forestilling slettet succesfuldt!");
+                                    showAdminPanel();
+                                } else {
+                                    alert("Der opstod en fejl ved sletning af forestillingen.");
+                                }
+                            })
+                            .catch(error => {
+                                console.error("Fejl ved sletning af forestilling:", error);
+                            });
+                    }
+                });
+
+                document.getElementById("backToAdmin").addEventListener("click", function () {
+                    showAdminPanel();
+                });
+            })
+            .catch(error => console.error("Fejl ved hentning af forestillinger:", error));
+    });
 }
